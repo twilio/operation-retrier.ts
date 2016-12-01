@@ -2,7 +2,7 @@ import 'mocha';
 
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
-import * as sinon from 'Sinon';
+import * as sinon from 'sinon';
 
 chai.use(chaiAsPromised);
 chai.should();
