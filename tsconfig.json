@@ -1,0 +1,14 @@
+{
+    "files": [
+        "src/retrier.ts"
+    ],
+    "compilerOptions": {
+        "module": "commonjs",
+        "sourceMap": true,
+        "declaration": true,
+        "noImplicitAny": false,
+        "target": "es5",
+        "lib": ["es5", "es2015.promise"],
+        "outDir": "lib"
+    }
+}

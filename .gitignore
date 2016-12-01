@@ -1,0 +1,11 @@
+node_modules
+docs
+bin
+dist
+build
+lib
+npm-debug.log
+*.swp
+.idea
+.vscode
+test/credentials.json
