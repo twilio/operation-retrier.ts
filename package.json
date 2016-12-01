@@ -1,5 +1,5 @@
 {
-  "name": "retrier",
+  "name": "operation-retrier",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -7,7 +7,7 @@
     "prepublish": "./node_modules/typescript/bin/tsc",
     "test": "./node_modules/mocha/bin/mocha -r ts-node/register test/*ts"
   },
-  "author": "",
+  "author": "Sergei Chertkov",
   "license": "ISC",
   "devDependencies": {
     "@types/chai": "^3.4.34",
