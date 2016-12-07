@@ -92,5 +92,43 @@ describe('Retrier', () => {
       () => { mockClock.tick(20); }
     ]);
   });
+
+
+  describe('Promise interface', () => {
+    it('resolves when underlying promise is resolved', () => {
+      mockClock.restore();
+      let myspy = sinon.stub();
+      myspy
+        .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
+        .onSecondCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
+        .onThirdCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+
+      return new Retrier({ min: 10, max: 1000})
+        .run(myspy).should.be.fulfilled;
+    });
+
+    it('rejects if maximum attempts count reached', () => {
+      mockClock.restore();
+      let myspy = sinon.stub();
+      myspy
+        .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
+        .onSecondCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
+        .onThirdCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+
+      return new Retrier({ min: 10, max: 100, maxAttemptsCount: 2 }).run(myspy).should.be.rejected;
+    });
+
+    it('rejects if maximum attempts time reached', () => {
+      mockClock.restore();
+      let myspy = sinon.stub();
+      myspy
+        .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
+        .onSecondCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
+        .onThirdCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+
+      return new Retrier({ min: 10, max: 100, maxAttemptsTime: 1 }).run(myspy).should.be.rejected;
+    });
+
+  });
 });
 
