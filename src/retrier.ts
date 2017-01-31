@@ -139,7 +139,7 @@ export default class Retrier extends EventEmitter {
     this.scheduleAttempt();
   }
 
-  run<T>(handler: () => Promise<T>) {
+  run<T>(handler: () => Promise<T>) : Promise<T> {
     this.on('attempt', () => {
       handler().then(v => this.succeeded(v)).catch(e => this.failed(e));
     });
