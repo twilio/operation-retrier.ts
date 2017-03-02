@@ -3,24 +3,23 @@ import { EventEmitter } from "events";
 /**
  *
  */
-export default class Retrier extends EventEmitter {
-
-  minDelay: number;
-  maxDelay: number;
-  initialDelay: number;
-  maxAttemptsCount: number;
-  maxAttemptsTime: number;
+class Retrier extends EventEmitter {
+  private minDelay: number;
+  private maxDelay: number;
+  private initialDelay: number;
+  private maxAttemptsCount: number;
+  private maxAttemptsTime: number;
 
   // fibonacci strategy
-  prevDelay: number;
-  currDelay: number;
+  private prevDelay: number;
+  private currDelay: number;
 
-  timeout: any;
-  resolve: Function;
-  reject: Function;
-  inProgress: boolean;
-  attemptNum: number;
-  startTimestamp: number;
+  private timeout: any;
+  private resolve: Function;
+  private reject: Function;
+  private inProgress: boolean;
+  private attemptNum: number;
+  private startTimestamp: number;
 
   /**
    * Creates a new Retrier instance
@@ -53,10 +52,10 @@ export default class Retrier extends EventEmitter {
     this.attemptNum++;
 
     this.timeout = null;
-    this.emit("attempt");
+    this.emit("attempt", this);
   }
 
-  protected nextDelay() {
+  protected nextDelay() : number {
     if (this.attemptNum == 0) {
       return this.initialDelay;
     }
@@ -72,7 +71,7 @@ export default class Retrier extends EventEmitter {
     return delay;
   }
 
-  protected scheduleAttempt() {
+  protected scheduleAttempt(delayOverride?: number) {
     if (this.maxAttemptsCount && this.attemptNum >= this.maxAttemptsCount) {
       this.cleanup();
       this.emit('failed', new Error('Maximum attempt count limit reached'));
@@ -80,7 +79,7 @@ export default class Retrier extends EventEmitter {
       return;
     }
 
-    let delay = this.nextDelay();
+    let delay = (typeof delayOverride === 'number') ? delayOverride : this.nextDelay();
     if (this.maxAttemptsTime && (this.startTimestamp + this.maxAttemptsTime < Date.now() + delay)) {
       this.cleanup();
       this.emit('failed', new Error('Maximum attempt time limit reached'));
@@ -111,7 +110,7 @@ export default class Retrier extends EventEmitter {
       this.reject = reject;
 
       this.startTimestamp = Date.now();
-      this.scheduleAttempt();
+      this.scheduleAttempt(this.initialDelay);
     });
   }
 
@@ -131,12 +130,12 @@ export default class Retrier extends EventEmitter {
     this.resolve(arg);
   }
 
-  failed(err: Error) {
+  failed(err: Error, nextAttemptDelayOverride?: number) {
     if (this.timeout) {
       throw new Error("Retrier attempt is already in progress");
     }
 
-    this.scheduleAttempt();
+    this.scheduleAttempt(nextAttemptDelayOverride);
   }
 
   run<T>(handler: () => Promise<T>) : Promise<T> {
@@ -146,6 +145,8 @@ export default class Retrier extends EventEmitter {
 
     return this.start();
   }
-
 }
+
+export { Retrier };
+export default Retrier;
 

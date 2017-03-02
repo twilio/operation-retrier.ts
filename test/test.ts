@@ -3,7 +3,9 @@ import 'mocha';
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 import * as sinon from 'sinon';
+import * as sinonChai from 'sinon-chai';
 
+chai.use(sinonChai);
 chai.use(chaiAsPromised);
 chai.should();
 const expect = chai.expect;
@@ -94,6 +96,38 @@ describe('Retrier', () => {
   });
 
 
+  it('when failed should respect delay override', () => {
+    let retrier = new Retrier({ min: 10, max: 20});
+
+    // Failed to deal with sinon-as-promised here
+    let myspy = sinon.stub();
+    myspy
+      .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
+      .onSecondCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+
+    retrier.on('attempt', () => myspy()
+                                  .then(res => retrier.succeeded(res))
+                                  .catch(err => retrier.failed(err, 300)));
+
+    let retrierResult = retrier.start();
+
+    return Async.sequence([
+      () => {
+          expect(myspy).to.have.not.been.called;
+          mockClock.tick(0);
+          expect(myspy).to.have.been.calledOnce;
+      },
+      () => {
+          mockClock.tick(50);
+          expect(myspy).to.have.been.calledOnce;
+          mockClock.tick(250);
+          expect(myspy).to.have.been.calledTwice;
+      }
+    ]);
+  });
+
+
+
   describe('Promise interface', () => {
     it('resolves when underlying promise is resolved', () => {
       mockClock.restore();
@@ -128,7 +162,7 @@ describe('Retrier', () => {
 
       return new Retrier({ min: 10, max: 100, maxAttemptsTime: 1 }).run(myspy).should.be.rejected;
     });
-
   });
+
 });
 
