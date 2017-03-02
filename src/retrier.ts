@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 
 /**
- *
+ * Provides retrier service
  */
 class Retrier extends EventEmitter {
   private minDelay: number;
@@ -9,6 +9,7 @@ class Retrier extends EventEmitter {
   private initialDelay: number;
   private maxAttemptsCount: number;
   private maxAttemptsTime: number;
+  private randomness: number;
 
   // fibonacci strategy
   private prevDelay: number;
@@ -27,8 +28,9 @@ class Retrier extends EventEmitter {
   constructor(options: { min: number,
                          max: number,
                          initial?: number,
-                         maxAttemptsCount?: number
-                         maxAttemptsTime?: number
+                         maxAttemptsCount?: number,
+                         maxAttemptsTime?: number,
+                         randomness?: number
                        })
   {
     super();
@@ -38,6 +40,7 @@ class Retrier extends EventEmitter {
     this.initialDelay = options.initial || 0;
     this.maxAttemptsCount = options.maxAttemptsCount || 0;
     this.maxAttemptsTime = options.maxAttemptsTime || 0;
+    this.randomness = options.randomness || 0;
 
     this.inProgress = false;
     this.attemptNum = 0;
@@ -46,7 +49,7 @@ class Retrier extends EventEmitter {
     this.currDelay = 0;
   }
 
-  protected attempt() {
+  private attempt() {
     clearTimeout(this.timeout);
 
     this.attemptNum++;
@@ -55,7 +58,13 @@ class Retrier extends EventEmitter {
     this.emit("attempt", this);
   }
 
-  protected nextDelay() : number {
+  private nextDelay(delayOverride?: number) : number {
+    if (typeof delayOverride === 'number') {
+      this.prevDelay = 0;
+      this.currDelay = delayOverride;
+      return delayOverride;
+    }
+
     if (this.attemptNum == 0) {
       return this.initialDelay;
     }
@@ -71,7 +80,13 @@ class Retrier extends EventEmitter {
     return delay;
   }
 
-  protected scheduleAttempt(delayOverride?: number) {
+  private randomize(delay: number) {
+    let area = delay * this.randomness;
+    let corr = Math.round(Math.random() * area * 2) - area;
+    return Math.max(0, delay + corr);
+  }
+
+  private scheduleAttempt(delayOverride?: number) {
     if (this.maxAttemptsCount && this.attemptNum >= this.maxAttemptsCount) {
       this.cleanup();
       this.emit('failed', new Error('Maximum attempt count limit reached'));
@@ -79,7 +94,8 @@ class Retrier extends EventEmitter {
       return;
     }
 
-    let delay = (typeof delayOverride === 'number') ? delayOverride : this.nextDelay();
+    let delay = this.nextDelay(delayOverride);
+    delay = this.randomize(delay);
     if (this.maxAttemptsTime && (this.startTimestamp + this.maxAttemptsTime < Date.now() + delay)) {
       this.cleanup();
       this.emit('failed', new Error('Maximum attempt time limit reached'));
@@ -89,7 +105,7 @@ class Retrier extends EventEmitter {
     this.timeout = setTimeout(() => this.attempt(), delay) as any;
   }
 
-  protected cleanup() {
+  private cleanup() {
     clearTimeout(this.timeout);
     this.timeout = null;
     this.inProgress = false;
