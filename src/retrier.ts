@@ -82,7 +82,7 @@ class Retrier extends EventEmitter {
 
   private randomize(delay: number) {
     let area = delay * this.randomness;
-    let corr = Math.round(Math.random() * area * 2) - area;
+    let corr = Math.round(Math.random() * area * 2 - area);
     return Math.max(0, delay + corr);
   }
 
