@@ -1,6 +1,6 @@
 {
   "name": "operation-retrier",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "",
   "main": "./lib/retrier.js",
   "types": "./lib/retrier.d.ts",
