@@ -159,7 +159,7 @@ class Retrier extends EventEmitter {
       handler().then(v => this.succeeded(v)).catch(e => this.failed(e));
     });
 
-    return this.start();
+    return this.start() as Promise<T>;
   }
 }
 
