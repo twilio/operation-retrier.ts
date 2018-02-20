@@ -7,8 +7,11 @@
         "sourceMap": true,
         "declaration": true,
         "noImplicitAny": false,
-        "target": "es5",
-        "lib": ["es5", "es2015.promise"],
+        "preserveConstEnums": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "target": "es2017",
+        "lib": [ "es7", "dom" ],
         "outDir": "lib"
     }
 }

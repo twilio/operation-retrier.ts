@@ -141,7 +141,7 @@ class Retrier extends EventEmitter {
     }
   }
 
-  succeeded(arg: any) {
+  succeeded(arg?: any) {
     this.emit("succeeded", arg);
     this.resolve(arg);
   }
