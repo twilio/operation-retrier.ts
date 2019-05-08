@@ -12,19 +12,26 @@ const expect = chai.expect;
 
 import { Async } from 'async-test-tools';
 import Retrier from '../src/retrier';
+import { Backoff } from '../src/retrier';
 
 describe('Retrier', () => {
   let mockClock;
 
-  before(() => {
+  beforeEach(() => {
     mockClock = sinon.useFakeTimers(new Date().getTime());
   });
 
+  afterEach(() => {
+    mockClock.restore();
+  });
+
   it('Should immediately call a function', () => {
-    let retrier = new Retrier({ min: 10, max: 1000 });
+    let retrier = new Retrier({min: 10, max: 1000});
 
     let called = false;
-    retrier.on('attempt', () => { called = true; })
+    retrier.on('attempt', () => {
+      called = true;
+    });
     retrier.start();
 
     mockClock.tick(0);
@@ -32,10 +39,12 @@ describe('Retrier', () => {
   });
 
   it('Should repsect an initial delay', () => {
-    let retrier = new Retrier({ min: 10, max: 1000, initial: 100 });
+    let retrier = new Retrier({min: 10, max: 1000, initial: 100});
 
     let called = false;
-    retrier.on('attempt', () => { called = true; })
+    retrier.on('attempt', () => {
+      called = true;
+    });
     retrier.start();
 
     mockClock.tick(50);
@@ -45,21 +54,23 @@ describe('Retrier', () => {
   });
 
   it('when succeeded should fire a "succeeded" event and resolve a promise', () => {
-    let retrier = new Retrier({ min: 10, max: 1000 });
+    let retrier = new Retrier({min: 10, max: 1000});
     let result = retrier.start();
     retrier.on('attempt', () => {
-      retrier.succeeded({ code: 200, message: 'OK' });
-    })
+      retrier.succeeded({code: 200, message: 'OK'});
+    });
 
     mockClock.tick(0);
-    return expect(result).to.become({ code: 200, message: 'OK' });
+    return expect(result).to.become({code: 200, message: 'OK'});
   });
 
   it('when cancelled should fire a "cancelled" event and reject a promise', () => {
-    let retrier = new Retrier({ min: 10, max: 1000, initial: 100 });
+    let retrier = new Retrier({min: 10, max: 1000, initial: 100});
 
     let called = false;
-    retrier.on('attempt', () => { called = true; });
+    retrier.on('attempt', () => {
+      called = true;
+    });
     let retrierResult = retrier.start();
 
     mockClock.tick(50);
@@ -73,96 +84,275 @@ describe('Retrier', () => {
   });
 
   it('when failure reported should retry', () => {
-    let retrier = new Retrier({ min: 10, max: 1000});
+    let retrier = new Retrier({min: 10, max: 1000});
 
     // Failed to deal with sinon-as-promised here
     let myspy = sinon.stub();
     myspy
-      .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-      .onSecondCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-      .onThirdCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+        .onFirstCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+        .onSecondCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+        .onThirdCall().returns(Promise.resolve({code: 200, message: 'OK'}));
 
     retrier.on('attempt', () => myspy()
-                                  .then(res => retrier.succeeded(res))
-                                  .catch(err => retrier.failed(err)));
-
-    let retrierResult = retrier.start();
-
-    return Async.sequence([
-      () => { mockClock.tick(0); },
-      () => { mockClock.tick(20); },
-      () => { mockClock.tick(20); }
-    ]);
-  });
-
-
-  it('when failed should respect delay override', () => {
-    let retrier = new Retrier({ min: 10, max: 20});
-
-    // Failed to deal with sinon-as-promised here
-    let myspy = sinon.stub();
-    myspy
-      .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-      .onSecondCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
-
-    retrier.on('attempt', () => myspy()
-                                  .then(res => retrier.succeeded(res))
-                                  .catch(err => retrier.failed(err, 300)));
+        .then(res => retrier.succeeded(res))
+        .catch(err => retrier.failed(err)));
 
     let retrierResult = retrier.start();
 
     return Async.sequence([
       () => {
-          expect(myspy).to.have.not.been.called;
-          mockClock.tick(0);
-          expect(myspy).to.have.been.calledOnce;
+        mockClock.tick(0);
       },
       () => {
-          mockClock.tick(50);
-          expect(myspy).to.have.been.calledOnce;
-          mockClock.tick(250);
-          expect(myspy).to.have.been.calledTwice;
+        mockClock.tick(20);
+      },
+      () => {
+        mockClock.tick(20);
       }
     ]);
   });
 
+  it('when failed should respect delay override', () => {
+    let retrier = new Retrier({min: 10, max: 20});
 
+    // Failed to deal with sinon-as-promised here
+    let myspy = sinon.stub();
+    myspy
+        .onFirstCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+        .onSecondCall().returns(Promise.resolve({code: 200, message: 'OK'}));
+
+    retrier.on('attempt', () => myspy()
+        .then(res => retrier.succeeded(res))
+        .catch(err => retrier.failed(err, 300)));
+
+    let retrierResult = retrier.start();
+
+    return Async.sequence([
+      () => {
+        expect(myspy).to.have.not.been.called;
+        mockClock.tick(0);
+        expect(myspy).to.have.been.calledOnce;
+      },
+      () => {
+        mockClock.tick(50);
+        expect(myspy).to.have.been.calledOnce;
+        mockClock.tick(250);
+        expect(myspy).to.have.been.calledTwice;
+      }
+    ]);
+  });
 
   describe('Promise interface', () => {
     it('resolves when underlying promise is resolved', () => {
       mockClock.restore();
       let myspy = sinon.stub();
       myspy
-        .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-        .onSecondCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-        .onThirdCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+          .onFirstCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+          .onSecondCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+          .onThirdCall().returns(Promise.resolve({code: 200, message: 'OK'}));
 
-      return new Retrier({ min: 10, max: 1000})
-        .run(myspy).should.be.fulfilled;
+      return new Retrier({min: 10, max: 1000})
+          .run(myspy).should.be.fulfilled;
     });
 
     it('rejects if maximum attempts count reached', () => {
       mockClock.restore();
       let myspy = sinon.stub();
       myspy
-        .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-        .onSecondCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-        .onThirdCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+          .onFirstCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+          .onSecondCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+          .onThirdCall().returns(Promise.resolve({code: 200, message: 'OK'}));
 
-      return new Retrier({ min: 10, max: 100, maxAttemptsCount: 2 }).run(myspy).should.be.rejected;
+      return new Retrier({min: 10, max: 100, maxAttemptsCount: 2}).run(myspy).should.be.rejected;
     });
 
     it('rejects if maximum attempts time reached', () => {
       mockClock.restore();
       let myspy = sinon.stub();
       myspy
-        .onFirstCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-        .onSecondCall().returns(Promise.reject({ code: 503, message: 'Server unavailable' }))
-        .onThirdCall().returns(Promise.resolve({ code: 200, message: 'OK' }));
+          .onFirstCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+          .onSecondCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
+          .onThirdCall().returns(Promise.resolve({code: 200, message: 'OK'}));
 
-      return new Retrier({ min: 10, max: 100, maxAttemptsTime: 1 }).run(myspy).should.be.rejected;
+      return new Retrier({min: 10, max: 100, maxAttemptsTime: 1}).run(myspy).should.be.rejected;
     });
   });
 
-});
+  describe('Backoff', function () {
+    let backoff;
+    let backoffCallback;
+    let readyCallback;
+    let failCallback;
 
+    function testFunc(initOptions, expectedMesage) {
+      try {
+        backoff = Backoff.exponential(initOptions);
+      } catch (err) {
+        expect(err.message).to.equal(expectedMesage);
+      }
+    }
+
+    beforeEach(() => {
+      backoffCallback = sinon.spy();
+      readyCallback = sinon.spy();
+      failCallback = sinon.spy();
+      backoff = Backoff.exponential({
+        initialDelay: 10,
+        maxDelay: 1000
+      });
+      backoff.on('backoff', backoffCallback);
+      backoff.on('ready', readyCallback);
+      backoff.on('fail', failCallback);
+    });
+
+    it('should emit the \'backoff\' event when backoff starts', () => {
+      backoff.backoff();
+      expect(backoffCallback).to.have.been.calledOnce;
+    });
+
+    it('the ready event should be emitted on backoff completion', () => {
+      backoff.backoff();
+      mockClock.tick(10);
+      expect(readyCallback).to.have.been.calledOnce;
+    });
+
+    it('the backoff event should be passed the backoff number and backoff delay', () => {
+      backoff.backoff();
+      expect(backoffCallback).to.have.been.calledWith(0, 10);
+    });
+
+    it('the ready event should be passed backoff number and the backoff delay', () => {
+      backoff.backoff();
+      mockClock.tick(10);
+      expect(backoffCallback).to.have.been.calledWith(0, 10);
+    });
+
+    it('the fail event should be emitted when backoff limit is reached', () => {
+      let error = new Error('Failure error.');
+      backoff.failAfter(2);
+      backoff.backoff();
+      mockClock.tick(10);
+      backoff.backoff();
+      mockClock.tick(20);
+
+      expect(failCallback).not.to.have.been.called;
+      backoff.backoff(error);
+      expect(failCallback).to.have.been.calledWith(error);
+    });
+
+    it('calling backoff while a backoff is in progress should throw an error', () => {
+      backoff.backoff();
+      try {
+        backoff.backoff();
+        expect.fail('Calling backoff while another one is in progress should have thrown an error!');
+      } catch (err) {
+        expect(err.message).to.equal('Backoff in progress.');
+      }
+    });
+
+    it('reset should cancel any backoff in progress', () => {
+      backoff.backoff();
+      backoff.reset();
+
+      mockClock.tick(10);
+      expect(readyCallback).not.to.have.been.called;
+    });
+
+    it('backoff should be reset after fail', () => {
+      sinon.spy(backoff, 'reset');
+
+      backoff.failAfter(1);
+      backoff.backoff();
+      mockClock.tick(10);
+      backoff.backoff();
+
+      expect(backoff.reset).to.have.been.calledOnce;
+      backoff.reset.restore();
+    });
+
+    it('backoff limit should be greater than 0', () => {
+      try {
+        backoff.failAfter(0);
+        expect.fail('Calling backoff.failAfter with 0 should have thrown an error!');
+      } catch (err) {
+        expect(err.message).to.equal('Expected a maximum number of retry greater than 0 but got 0');
+      }
+    });
+
+    it('the backoff number should increase from 0 to N - 1', () => {
+      const expectedNumbers = [0, 1, 2, 3, 4];
+
+      for (let i of expectedNumbers) {
+        backoff.backoff();
+        mockClock.tick(backoff.next());
+        expect(backoffCallback.getCall(i).args[0]).to.equal(i);
+      }
+    });
+
+    it('the randomisation factor should be between 0 and 1', () => {
+      testFunc({randomisationFactor: 1.1}, 'The randomisation factor must be between 0 and 1.');
+      testFunc({randomisationFactor: -0.1}, 'The randomisation factor must be between 0 and 1.');
+      testFunc({randomisationFactor: 0}, 'The randomisation factor must be between 0 and 1.');
+      testFunc({randomisationFactor: 1}, 'The randomisation factor must be between 0 and 1.');
+    });
+
+    it('the raw delay should be randomized based on the randomisation factor', () => {
+      backoff = Backoff.exponential({
+        randomisationFactor: 0.5,
+        initialDelay: 10,
+        maxDelay: 600
+      });
+      for (let i = 0; i < 10; i++) {
+        let next = backoff.next();
+        expect(backoff.next()).to.be.below(601);
+        expect(backoff.next()).to.be.at.least(10);
+      }
+    });
+
+    it('the initial backoff delay should be greater than 0', () => {
+      testFunc({initialDelay: -0.1}, 'The initial timeout must be greater than 0.');
+      testFunc({initialDelay: 0}, 'The initial timeout must be greater than 0.');
+    });
+
+    it('the maximal backoff delay should be greater than 0', () => {
+      testFunc({maxDelay: -0.1}, 'The maximal timeout must be greater than 0.');
+      testFunc({maxDelay: 0}, 'The maximal timeout must be greater than 0.');
+    });
+
+    it('the maximal backoff delay should be greater than the initial backoff delay', () => {
+      testFunc({
+        maxDelay: 5,
+        initialDelay: 10
+      }, 'The maximal backoff delay must be greater than the initial backoff delay.');
+
+    });
+
+    it('delays should follow an exponential sequence', () => {
+      const expectedDelays = [10, 20, 40, 80, 160, 320, 640, 1000, 1000];
+      for (let delay of expectedDelays) {
+        expect(backoff.next()).to.equal(delay);
+      }
+    });
+
+    it('delay factor should be configurable', () => {
+      backoff = Backoff.exponential({
+        initialDelay: 10,
+        maxDelay: 270,
+        factor: 3
+      });
+      const expectedDelays = [10, 30, 90, 270, 270];
+      for (let delay of expectedDelays) {
+        expect(backoff.next()).to.equal(delay);
+      }
+    });
+
+    it('delays should restart from the initial delay after reset', () => {
+      backoff.next();
+      backoff.next();
+
+      expect(backoff.next()).to.equal(40);
+      backoff.reset();
+      expect(backoff.next()).to.equal(10);
+    });
+  });
+});
