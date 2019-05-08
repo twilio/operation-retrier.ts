@@ -1,13 +1,39 @@
 language: node_js
 sudo: false
-node_js:
-  - '6'
-  - '9'
+before_install:
+  - echo "//registry.npmjs.org/:_authToken=\${PUBLIC_NPM_API_KEY}" > .npmrc
+before_script:
+  - npm install -g gulp-cli
+  - npm install -g travis-build-publisher
+  - prepare-publish-version
+jobs:
+  include:
+    - stage: Unit Tests
+      node_js: '8'
+      script: gulp unitTest
+    - stage: Unit Tests
+      node_js: '9'
+      script: gulp unitTest
+    - stage: Unit Tests
+      node_js: '10'
+      script: gulp unitTest
+    - stage: Build and NPM Deploy
+      node_js: '9'
+      script:
+        - gulp
+      deploy:
+        provider: npm
+        skip_cleanup: true
+        email: "${PUBLIC_NPM_EMAIL_ADDR}"
+        api_key: "${PUBLIC_NPM_API_KEY}"
+        tag: "$(get-channel-name)"
+        on:
+          all_branches: true
+stages:
+  - Unit Tests
+  - name: Build and NPM Deploy
+    if: tag IS present AND tag =~ ^release-.*$
+notifications:
+  slack:
+    secure: BQPGG/YeWzb1DIXLdc0y2NLZTV2JqdEQogM/+dsdRiFbRcgWdo/aPrZPpbNtCiV19SqYtG+7KreeGk/NB980Vic886pJ7pBA53AFAJ6myN+gzfylcL+JrXlL5XmZWZ3WwNC56JWjiLjKX875Biq9ImqgCDPVxDv8vVIEMYsEvbSfDMLGVriWGWvs5pUiP770VxQITSSWi7QacQZn8Gpe//R+/UbwYZS/VSykwQp5i3S0YRZgFFbCp2Uxqg9ss1rjjZsQUHWp/uSvpyw2IvrVZEGw6iA21OHZq1VAfyA9bHuMjZGEO7LrSJ4dUBwtC/SXTqFywBAB7oPcEhvsjBfnbV1ZGfEH/fY9dx2HX05Wf7FLzdIOrZkcmnJnHuUhRh6gw6kGR3mb9RTHV3mJ/MFLwlV3pO90lqaE/gapix2xevpAXwaeOOrBnPefHsan6tWOLMZdrlUJi9klXRFSa4XeGCWounRUSq5jOZWH7zpqy40m6NAxRz/5uM9HWzPf4pgcaKrzhC+D1mRS5wOk9kdzqEeTi8LqS4tPuka2TntjMsUDV+yNhd1nHy/X8jtDaGuHTGYZB5HJG5/FQjAsUfCQgbyKIxygjoghb2H/oxPkQ1lXG4alo063ja5NT40GR1XH/n6b8HvWg3tkc9B7F6Pz+3+TlKq4kQQ0UgiDCcpRT2Q=
 
-deploy:
-  provider: npm
-  email: ${AUTHOR_EMAIL_ADDR}
-  api_key: ${AUTHOR_NPM_API_KEY}
-  skip_cleanup: true
-  on:
-    branch: master
