@@ -2,3 +2,5 @@
 .babelrc
 tsconfig.json
 test/
+gulpfile.ts
+tslint.json
