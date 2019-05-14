@@ -142,6 +142,34 @@ describe('Retrier', () => {
     ]);
   });
 
+  it('should stop retrying after the maximum attempt time limit is reached', async () => {
+    let retrier = new Retrier({min: 5, max: 10, maxAttemptsTime: 30});
+    let myspy = sinon.stub();
+    myspy.onCall(0).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
+    myspy.onCall(1).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
+    myspy.onCall(2).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
+    // myspy.onCall(4).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
+
+    retrier.on('attempt', () => myspy()
+        .then(res => retrier.succeeded(res))
+        .catch(err => retrier.failed(err)));
+    // this.emit('failed', new Error('Maximum attempt time limit reached'));
+    let failedCallback = sinon.spy();
+    retrier.on('failed', failedCallback);
+    retrier.start();
+    return Async.sequence([
+      () => {
+        mockClock.tick(30);
+      },
+      () => {
+        expect(failedCallback.getCall(0).args[0].message).to.equal('Maximum attempt time limit reached');
+        mockClock.tick(90);
+      },
+      () => {
+        expect(myspy).to.have.been.calledOnce;
+      }]);
+  });
+
   describe('Promise interface', () => {
     it('resolves when underlying promise is resolved', () => {
       mockClock.restore();

@@ -4,12 +4,12 @@ import { EventEmitter } from 'events';
  * Provides retrier service
  */
 class Retrier extends EventEmitter {
-  private minDelay: number;
+  private readonly minDelay: number;
   private maxDelay: number;
-  private initialDelay: number;
-  private maxAttemptsCount: number;
-  private maxAttemptsTime: number;
-  private randomness: number;
+  private readonly initialDelay: number;
+  private readonly maxAttemptsCount: number;
+  private readonly maxAttemptsTime: number;
+  private readonly randomness: number;
 
   // fibonacci strategy
   private prevDelay: number;
@@ -170,7 +170,7 @@ class Backoff extends EventEmitter {
   private readonly maxDelay: number;
   private readonly initialDelay: number;
   private readonly factor: number;
-  private randomisationFactor: number;
+  private readonly randomisationFactor: number;
   private backoffDelay: number;
   private nextBackoffDelay: number;
   private backoffNumber: number;
