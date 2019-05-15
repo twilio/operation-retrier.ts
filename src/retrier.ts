@@ -182,12 +182,11 @@ class Backoff extends EventEmitter {
     options = options || {};
 
     if (this.isDef(options.initialDelay) && options.initialDelay < 1) {
-      throw new Error('The initial timeout must be greater than 0.');
+      throw new Error('The initial timeout must be equal to or greater than 1.');
     } else if (this.isDef(options.maxDelay) && options.maxDelay < 1) {
-      throw new Error('The maximal timeout must be greater than 0.');
+      throw new Error('The maximal timeout must be equal to or greater than 1.');
     }
 
-    this.timeoutID = null;
     this.initialDelay = options.initialDelay || 100;
     this.maxDelay = options.maxDelay || 10000;
 
@@ -200,13 +199,11 @@ class Backoff extends EventEmitter {
     if (this.maxDelay <= this.initialDelay) {
       throw new Error('The maximal backoff delay must be greater than the initial backoff delay.');
     }
-    this.backoffDelay = 0;
-    this.nextBackoffDelay = this.initialDelay;
 
     this.maxNumberOfRetry = -1;
-    this.backoffNumber = 0;
+    this.reset();
 
-    if (options && options.factor !== undefined) {
+    if (this.isDef(options.factor)) {
       if (options.factor <= 1) {
         throw new Error(`Exponential factor should be greater than 1 but got ${options.factor}.`);
       }
@@ -219,17 +216,15 @@ class Backoff extends EventEmitter {
   }
 
   public backoff(err?: any) {
-    if (this.timeoutID !== null) {
-      throw new Error('Backoff in progress.');
-    }
-
-    if (this.backoffNumber === this.maxNumberOfRetry) {
-      this.emit('fail', err);
-      this.reset();
-    } else {
-      this.backoffDelay = this.next();
-      this.timeoutID = setTimeout(this.onBackoff.bind(this), this.backoffDelay);
-      this.emit('backoff', this.backoffNumber, this.backoffDelay, err);
+    if (this.timeoutID == null) {
+      if (this.backoffNumber === this.maxNumberOfRetry) {
+        this.emit('fail', err);
+        this.reset();
+      } else {
+        this.backoffDelay = this.next();
+        this.timeoutID = setTimeout(this.onBackoff.bind(this), this.backoffDelay);
+        this.emit('backoff', this.backoffNumber, this.backoffDelay, err);
+      }
     }
   }
 
@@ -254,7 +249,7 @@ class Backoff extends EventEmitter {
     this.backoffDelay = Math.min(this.nextBackoffDelay, this.maxDelay);
     this.nextBackoffDelay = this.backoffDelay * this.factor;
     let randomisationMultiple = 1 + Math.random() * this.randomisationFactor;
-    return Math.min(this.backoffDelay, Math.round(this.backoffDelay * randomisationMultiple));
+    return Math.min(this.maxDelay, Math.round(this.backoffDelay * randomisationMultiple));
   }
 
   onBackoff() {
@@ -263,7 +258,7 @@ class Backoff extends EventEmitter {
     this.backoffNumber++;
   }
 
-  private isDef(value) {
+  private isDef(value): boolean {
     return value !== undefined && value !== null;
   }
 

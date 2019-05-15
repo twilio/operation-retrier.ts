@@ -86,7 +86,6 @@ describe('Retrier', () => {
   it('when failure reported should retry', () => {
     let retrier = new Retrier({min: 10, max: 1000});
 
-    // Failed to deal with sinon-as-promised here
     let myspy = sinon.stub();
     myspy
         .onFirstCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
@@ -115,7 +114,6 @@ describe('Retrier', () => {
   it('when failed should respect delay override', () => {
     let retrier = new Retrier({min: 10, max: 20});
 
-    // Failed to deal with sinon-as-promised here
     let myspy = sinon.stub();
     myspy
         .onFirstCall().returns(Promise.reject({code: 503, message: 'Server unavailable'}))
@@ -148,12 +146,10 @@ describe('Retrier', () => {
     myspy.onCall(0).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
     myspy.onCall(1).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
     myspy.onCall(2).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
-    // myspy.onCall(4).returns(Promise.reject({code: 503, message: 'Server unavailable'}));
 
     retrier.on('attempt', () => myspy()
         .then(res => retrier.succeeded(res))
         .catch(err => retrier.failed(err)));
-    // this.emit('failed', new Error('Maximum attempt time limit reached'));
     let failedCallback = sinon.spy();
     retrier.on('failed', failedCallback);
     retrier.start();
@@ -215,6 +211,7 @@ describe('Retrier', () => {
     function testFunc(initOptions, expectedMesage) {
       try {
         backoff = Backoff.exponential(initOptions);
+        throw new Error(`Unexpected test pass for init options ${JSON.stringify(initOptions)}`);
       } catch (err) {
         expect(err.message).to.equal(expectedMesage);
       }
@@ -252,7 +249,7 @@ describe('Retrier', () => {
     it('the ready event should be passed backoff number and the backoff delay', () => {
       backoff.backoff();
       mockClock.tick(10);
-      expect(backoffCallback).to.have.been.calledWith(0, 10);
+      expect(readyCallback).to.have.been.calledWith(0, 10);
     });
 
     it('the fail event should be emitted when backoff limit is reached', () => {
@@ -266,16 +263,15 @@ describe('Retrier', () => {
       expect(failCallback).not.to.have.been.called;
       backoff.backoff(error);
       expect(failCallback).to.have.been.calledWith(error);
+      mockClock.tick(20);
+      expect(backoffCallback).to.have.been.calledTwice;
     });
 
-    it('calling backoff while a backoff is in progress should throw an error', () => {
+    it('calling backoff while a backoff is in progress should do nothing', () => {
       backoff.backoff();
-      try {
-        backoff.backoff();
-        expect.fail('Calling backoff while another one is in progress should have thrown an error!');
-      } catch (err) {
-        expect(err.message).to.equal('Backoff in progress.');
-      }
+      backoff.backoff();
+      expect(backoffCallback).to.have.been.calledOnce;
+      expect(failCallback).not.to.have.been.called;
     });
 
     it('reset should cancel any backoff in progress', () => {
@@ -320,31 +316,32 @@ describe('Retrier', () => {
     it('the randomisation factor should be between 0 and 1', () => {
       testFunc({randomisationFactor: 1.1}, 'The randomisation factor must be between 0 and 1.');
       testFunc({randomisationFactor: -0.1}, 'The randomisation factor must be between 0 and 1.');
-      testFunc({randomisationFactor: 0}, 'The randomisation factor must be between 0 and 1.');
-      testFunc({randomisationFactor: 1}, 'The randomisation factor must be between 0 and 1.');
     });
 
     it('the raw delay should be randomized based on the randomisation factor', () => {
       backoff = Backoff.exponential({
         randomisationFactor: 0.5,
         initialDelay: 10,
-        maxDelay: 600
+        maxDelay: 1200
       });
+      let previous = 10;
       for (let i = 0; i < 10; i++) {
         let next = backoff.next();
-        expect(backoff.next()).to.be.below(601);
-        expect(backoff.next()).to.be.at.least(10);
+        expect(next).to.be.at.least(previous);
+        expect(next).to.be.below(1201);
+        expect(next).to.be.at.least(10);
+        previous = next;
       }
     });
 
-    it('the initial backoff delay should be greater than 0', () => {
-      testFunc({initialDelay: -0.1}, 'The initial timeout must be greater than 0.');
-      testFunc({initialDelay: 0}, 'The initial timeout must be greater than 0.');
+    it('the initial backoff delay should be equal to or greater than 1.', () => {
+      testFunc({initialDelay: -0.1}, 'The initial timeout must be equal to or greater than 1.');
+      testFunc({initialDelay: 0}, 'The initial timeout must be equal to or greater than 1.');
     });
 
-    it('the maximal backoff delay should be greater than 0', () => {
-      testFunc({maxDelay: -0.1}, 'The maximal timeout must be greater than 0.');
-      testFunc({maxDelay: 0}, 'The maximal timeout must be greater than 0.');
+    it('the maximal backoff delay should be equal to or greater than 1.', () => {
+      testFunc({maxDelay: -0.1}, 'The maximal timeout must be equal to or greater than 1.');
+      testFunc({maxDelay: 0}, 'The maximal timeout must be equal to or greater than 1.');
     });
 
     it('the maximal backoff delay should be greater than the initial backoff delay', () => {
@@ -381,6 +378,24 @@ describe('Retrier', () => {
       expect(backoff.next()).to.equal(40);
       backoff.reset();
       expect(backoff.next()).to.equal(10);
+    });
+
+    it('should be in a clean state after reset', () => {
+      backoff.backoff();
+      mockClock.tick(10);
+      expect(readyCallback).to.have.been.calledWith(0, 10);
+      backoff.backoff();
+      mockClock.tick(20);
+      expect(readyCallback).to.have.been.calledWith(1, 20);
+      backoff.backoff();
+      mockClock.tick(40);
+      expect(readyCallback).to.have.been.calledWith(2, 40);
+
+      backoff.reset();
+
+      backoff.backoff();
+      mockClock.tick(10);
+      expect(readyCallback).to.have.been.calledWith(0, 10);
     });
   });
 });
