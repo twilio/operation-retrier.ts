@@ -38,7 +38,7 @@ describe('Retrier', () => {
     expect(called).to.equal(true);
   });
 
-  it('Should repsect an initial delay', () => {
+  it('Should respect an initial delay', () => {
     let retrier = new Retrier({min: 10, max: 1000, initial: 100});
 
     let called = false;
@@ -210,12 +210,12 @@ describe('Retrier', () => {
     let readyCallback;
     let failCallback;
 
-    function testFunc(initOptions, expectedMesage) {
+    function testFunc(initOptions, expectedMessage) {
       try {
         backoff = Backoff.exponential(initOptions);
         throw new Error(`Unexpected test pass for init options ${JSON.stringify(initOptions)}`);
       } catch (err) {
-        expect(err.message).to.equal(expectedMesage);
+        expect(err.message).to.equal(expectedMessage);
       }
     }
 
@@ -343,11 +343,13 @@ describe('Retrier', () => {
     it('the initial backoff delay should be equal to or greater than 1.', () => {
       testFunc({initialDelay: -0.1}, 'The initial timeout must be equal to or greater than 1.');
       testFunc({initialDelay: 0}, 'The initial timeout must be equal to or greater than 1.');
+      testFunc({initialDelay: 0.99}, 'The initial timeout must be equal to or greater than 1.');
     });
 
-    it('the maximal backoff delay should be equal to or greater than 1.', () => {
-      testFunc({maxDelay: -0.1}, 'The maximal timeout must be equal to or greater than 1.');
-      testFunc({maxDelay: 0}, 'The maximal timeout must be equal to or greater than 1.');
+    it('the maximal backoff delay should be greater than 1.', () => {
+      testFunc({maxDelay: -0.1}, 'The maximal timeout must be greater than 1.');
+      testFunc({maxDelay: 0}, 'The maximal timeout must be greater than 1.');
+      testFunc({maxDelay: 1}, 'The maximal timeout must be greater than 1.');
     });
 
     it('the maximal backoff delay should be greater than the initial backoff delay', () => {

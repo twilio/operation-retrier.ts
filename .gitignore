@@ -10,3 +10,7 @@ npm-debug.log
 .idea
 .vscode
 test/credentials.json
+
+
+# Mac OS files
+.DS_Store
