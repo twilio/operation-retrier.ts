@@ -203,6 +203,8 @@ describe('Retrier', () => {
   });
 
   describe('Backoff', function () {
+    const exponentialDelays = [10, 20, 40, 80, 160, 320, 640, 1000, 1000, 1000];
+
     let backoff;
     let backoffCallback;
     let readyCallback;
@@ -322,16 +324,20 @@ describe('Retrier', () => {
       backoff = Backoff.exponential({
         randomisationFactor: 0.5,
         initialDelay: 10,
-        maxDelay: 1200
+        maxDelay: 1000
       });
       let previous = 10;
+      let randomizedDelays = [];
       for (let i = 0; i < 10; i++) {
         let next = backoff.next();
+        randomizedDelays.push(next);
         expect(next).to.be.at.least(previous);
         expect(next).to.be.below(1201);
         expect(next).to.be.at.least(10);
         previous = next;
       }
+      let randomizedUniqueValues = randomizedDelays.filter((element, index) => element !== exponentialDelays[index]);
+      expect(randomizedUniqueValues.length).to.be.at.least(1);
     });
 
     it('the initial backoff delay should be equal to or greater than 1.', () => {
@@ -353,8 +359,7 @@ describe('Retrier', () => {
     });
 
     it('delays should follow an exponential sequence', () => {
-      const expectedDelays = [10, 20, 40, 80, 160, 320, 640, 1000, 1000];
-      for (let delay of expectedDelays) {
+      for (let delay of exponentialDelays) {
         expect(backoff.next()).to.equal(delay);
       }
     });
