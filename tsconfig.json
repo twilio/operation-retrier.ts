@@ -1,6 +1,8 @@
 {
     "files": [
-        "src/retrier.ts"
+        "src/retrier.ts",
+        "src/backoff.ts",
+        "src/index.ts"
     ],
     "compilerOptions": {
         "module": "commonjs",
