@@ -1,11 +1,15 @@
 {
   "name": "operation-retrier",
-  "version": "2.1.0",
-  "description": "",
-  "main": "./lib/retrier.js",
-  "types": "./lib/retrier.d.ts",
+  "version": "3.0.0",
+  "description": "RTD retrier",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/twilio/operation-retrier.ts.git"
+  },
   "scripts": {
-    "prepublish": "./node_modules/typescript/bin/tsc",
+    "prepare": "./node_modules/typescript/bin/tsc",
     "test": "./node_modules/mocha/bin/mocha -r ts-node/register test/*ts"
   },
   "author": "Sergei Chertkov",
