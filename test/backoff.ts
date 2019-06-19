@@ -10,7 +10,7 @@ chai.use(chaiAsPromised);
 chai.should();
 const expect = chai.expect;
 
-import Backoff from '../src/backoff';
+import { Backoff } from '../src';
 
 describe('Backoff', function () {
     let mockClock;

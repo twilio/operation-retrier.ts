@@ -37,7 +37,7 @@ gulp.task('lint', function() {
 
 gulp.task('unitTest', function(cb) {
     cp.exec(['FORCE_COLOR=1', 'NODE_ENV=test',
-        './node_modules/mocha/bin/mocha', '-r ts-node/register', 'test/*ts'
+        './node_modules/mocha/bin/mocha', config.unit.files
     ].join(' '), cb).stdout.pipe(process.stdout);
 });
 
