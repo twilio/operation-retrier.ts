@@ -11,6 +11,7 @@ chai.should();
 const expect = chai.expect;
 
 import { Async } from 'async-test-tools';
+import { Retrier as AnotherRetrier } from '../src';
 import Retrier from '../src';
 
 describe('Retrier', () => {
@@ -22,6 +23,14 @@ describe('Retrier', () => {
 
   afterEach(() => {
     mockClock.restore();
+  });
+
+  it('Both imports work', () => {
+    let retrier1 = new Retrier({min: 10, max: 1000});
+    let retrier2 = new AnotherRetrier({min: 10, max: 1000});
+
+    retrier1.start();
+    retrier2.start();
   });
 
   it('Should immediately call a function', () => {
