@@ -11,7 +11,7 @@ chai.should();
 const expect = chai.expect;
 
 import { Async } from 'async-test-tools';
-import { Retrier } from '../src';
+import Retrier from '../src';
 
 describe('Retrier', () => {
   let mockClock;

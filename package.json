@@ -1,6 +1,6 @@
 {
   "name": "operation-retrier",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "RTD retrier",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
